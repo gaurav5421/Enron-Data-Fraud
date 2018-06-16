@@ -1,0 +1,48 @@
+The first is that, by default, GridSearchCV optimizes Accuracy. That doesn't help your Precision or Recall scores.
+
+Instead, you want to tell it to optimize f1 scoring (which is a weighted average of Precision and Recall:
+
+grid = GridSearchCV(pipeline,param_grid,scoring='f1')
+The second is that GridSearchCV, internally, creates training and validation subsets. So you don't need to fit it to a training subset. You can fit it to all of the data.
+
+grid.fit(features,labels)
+The third is that, by default, GridSearchCV uses KFold cross-validation with 3 folds (3 train/validation splits). Given that the dataset is small and imbalanced (many more non-POI than POI) the validation subsets will only have 3 or 4 POI to test your model on. That is too few. So, instead, you want to use a cross-validation method that creates more folds (more train/validation subsets).
+
+The best option is StratifiedShuffleSplit:
+
+best_cv=cross_validation.StratifiedShuffleSplit(labels,100,random_state=42)
+
+grid = GridSearchCV(pipeline,param_grid,scoring='f1', cv = best_cv)
+
+grid.fit(features,labels)
+Fourth, there is no feature selection, or dimension reduction used while developing your model.
+
+You can use a pipeline with GridSearchCV to add SelectKBest or PCA.
+
+Here is an example with PCA:
+
+pl = [('pca', PCA()), ('Dtree', DecisionTreeClassifier())]
+
+#Executando o pipeline
+pipeline = Pipeline(pl)
+
+best_cv=cross_validation.StratifiedShuffleSplit(labels,100,random_state=42)
+
+param_grid = {'pca__n_components': range(1,4), 'Dtree__criterion':["entropy","gini"],'Dtree__min_samples_split':[2,5,10,20,40]}
+grid = GridSearchCV(pipeline,param_grid,scoring='f1', cv = best_cv)
+
+grid.fit(features,labels)
+
+clf = grid.best_estimator_
+Although that is just an example, with the Decision Tree classifier, SelectKBest would be a better option
+Notice, the names of the parameters in your parameter grid change when you use a pipeline. You have to use the name of the step in the pipeline followed by two underscores, then the name of the parameter.
+
+Also, to extract the best model from GridSearchCV, you use:
+
+grid.best_estimator_
+That is the clf that you want to use in the final line of your code that passes your best model to tester.py
+Finally, you can see the evaluation that the review sees (when they run tester.py) in your code by using:
+
+from tester import test_classifier
+test_classifier(clf, my_dataset, features_list)
+That will show you the final evaluation of your model. You have to ensure that clf is defined as your 
